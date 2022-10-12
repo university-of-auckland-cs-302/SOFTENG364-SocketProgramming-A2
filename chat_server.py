@@ -15,6 +15,9 @@ class ChatServer(object):
     def __init__(self, port, backlog=5):
         self.clients = 0
         self.clientmap = {}
+        self.allClients = {}
+        self.groupChats = {}
+        self.grounpChatNames = {}
         self.outputs = []  # list output sockets
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -40,6 +43,10 @@ class ChatServer(object):
         info = self.clientmap[client]
         host, name = info[0][0], info[1]
         return '@'.join((name, host))
+    
+    #create function that sends list of connected clients to client
+    def sendOnlineClients(self, client):
+        get_clients()
 
     def run(self):
         # inputs = [self.server, sys.stdin]
@@ -58,10 +65,12 @@ class ChatServer(object):
                 if sock == self.server:
                     # handle the server socket
                     client, address = self.server.accept()
-                    print(
-                        f'Chat server: got connection {client.fileno()} from {address}')
+                
                     # Read the login name
                     cname = receive(client).split('NAME: ')[1]
+                    
+                    #print client name and join message
+                    print(cname + ' has joined the server from ' + str(address))
 
                     # Compute client name and send back
                     self.clients += 1
@@ -74,6 +83,9 @@ class ChatServer(object):
                     for output in self.outputs:
                         send(output, msg)
                     self.outputs.append(client)
+                    
+                    #add client to allClients dictionary
+                    # self.allClients.append(client)
 
                 # elif sock == sys.stdin:
                 #     # didn't test sys.stdin on windows system
@@ -91,13 +103,20 @@ class ChatServer(object):
                             # Send as new client's message...
                             msg = f'\n#[{self.get_client_name(sock)}]>> {data}'
 
-                            # Send data to all except ourself
+                            # Send data to all except yourself
                             for output in self.outputs:
                                 if output != sock:
                                     send(output, msg)
+                            
+                            if data == 'getOnlineClients':
+                                send(sock, self.allClients)
+                            if data == 'getGroupChats':
+                                send(sock, self.groupChats)
                         else:
                             print(f'Chat server: {sock.fileno()} hung up')
                             self.clients -= 1
+                            #remove client from allClients dictionary
+                            del self.allClients[sock]
                             sock.close()
                             inputs.remove(sock)
                             self.outputs.remove(sock)

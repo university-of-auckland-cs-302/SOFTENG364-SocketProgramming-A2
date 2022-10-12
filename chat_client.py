@@ -85,6 +85,29 @@ class ChatClient():
                 stop_thread = True
                 self.cleanup()
                 break
+    
+    def getOnlineClients(self):
+        send(self.sock, "getOnlineClients")
+        data = receive(self.sock)
+        return data
+
+    def getGroupChats(self):
+        send(self.sock, "getGroupChats")
+        data = receive(self.sock)
+        return data
+
+    # def transmitPublicMessage(self):
+    #     send(self.sock, 2)
+
+    # def createGroup(self):
+    #     send(self.sock, 3)
+
+    def sendMessage(self, message):
+        send(self.sock, message)
+    
+    def receiveMessage(self):
+        data = receive(self.sock)
+        return data
 
 
 if __name__ == "__main__":
