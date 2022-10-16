@@ -7,9 +7,10 @@ import threading
 
 from utils import *
 
-SERVER_HOST = 'localhost'
+SERVER_HOST = "localhost"
 
 stop_thread = False
+
 
 def get_and_send(client):
     while not stop_thread:
@@ -17,36 +18,38 @@ def get_and_send(client):
         if data:
             send(client.sock, data)
 
-class ChatClient():
-    """ A command line chat client using select """
+
+class ChatClient:
+    """A command line chat client using select"""
+
     def __init__(self, name, port, host=SERVER_HOST):
         self.name = name
         self.connected = False
         self.host = host
         self.port = port
-        
+
         # Initial prompt
-        self.prompt = f'[{name}@{socket.gethostname()}]> '
-        
+        self.prompt = f"[{name}@{socket.gethostname()}]> "
+
         # Connect to server at port
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((host, self.port))
-            print(f'Now connected to chat server@ port {self.port}')
+            print(f"Now connected to chat server@ port {self.port}")
             self.connected = True
-            
+
             # Send my name...
-            send(self.sock, 'NAME: ' + self.name)
+            send(self.sock, "NAME: " + self.name)
             data = receive(self.sock)
-            
+
             # Contains client address, set it
-            addr = data.split('CLIENT: ')[1]
-            self.prompt = '[' + '@'.join((self.name, addr)) + ']> '
+            addr = data.split("CLIENT: ")[1]
+            self.prompt = "[" + "@".join((self.name, addr)) + "]> "
 
             threading.Thread(target=get_and_send, args=(self,)).start()
 
         except socket.error as e:
-            print(f'Failed to connect to chat server @ port {self.port}')
+            print(f"Failed to connect to chat server @ port {self.port}")
             sys.exit(1)
 
     def cleanup(self):
@@ -54,7 +57,7 @@ class ChatClient():
         self.sock.close()
 
     def run(self):
-        """ Chat client main loop """
+        """Chat client main loop"""
         while self.connected:
             try:
                 sys.stdout.write(self.prompt)
@@ -62,8 +65,7 @@ class ChatClient():
 
                 # Wait for input from stdin and socket
                 # readable, writeable, exceptional = select.select([0, self.sock], [], [])
-                readable, writeable, exceptional = select.select(
-                    [self.sock], [], [])
+                readable, writeable, exceptional = select.select([self.sock], [], [])
 
                 for sock in readable:
                     # if sock == 0:
@@ -73,11 +75,11 @@ class ChatClient():
                     if sock == self.sock:
                         data = receive(self.sock)
                         if not data:
-                            print('Client shutting down.')
+                            print("Client shutting down.")
                             self.connected = False
                             break
                         else:
-                            sys.stdout.write(data + '\n')
+                            sys.stdout.write(data + "\n")
                             sys.stdout.flush()
 
             except KeyboardInterrupt:
@@ -85,36 +87,34 @@ class ChatClient():
                 stop_thread = True
                 self.cleanup()
                 break
-    
+
     def getOnlineClients(self):
         send(self.sock, "getOnlineClients")
         data = receive(self.sock)
         return data
 
+    #use this in join groups
     def getGroupChats(self):
         send(self.sock, "getGroupChats")
         data = receive(self.sock)
         return data
 
-    # def transmitPublicMessage(self):
-    #     send(self.sock, 2)
+    def cleanup(self):
+        send(self.sock, False)
+        self.sock.close()
 
-    # def createGroup(self):
-    #     send(self.sock, 3)
-
-    def sendMessage(self, message):
+    def sendMsg(self, message):
         send(self.sock, message)
-    
-    def receiveMessage(self):
+
+    def receiveMsg(self):
         data = receive(self.sock)
         return data
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--name', action="store", dest="name", required=True)
-    parser.add_argument('--port', action="store",
-                        dest="port", type=int, required=True)
+    parser.add_argument("--name", action="store", dest="name", required=True)
+    parser.add_argument("--port", action="store", dest="port", type=int, required=True)
     given_args = parser.parse_args()
 
     port = given_args.port

@@ -6,16 +6,16 @@ import argparse
 
 from utils import *
 
-SERVER_HOST = 'localhost'
+SERVER_HOST = "localhost"
 
 
 class ChatServer(object):
-    """ An example chat server using select """
+    """An example chat server using select"""
 
     def __init__(self, port, backlog=5):
         self.clients = 0
         self.clientmap = {}
-        self.allClients = {}
+        self.cList = []
         self.groupChats = {}
         self.grounpChatNames = {}
         self.outputs = []  # list output sockets
@@ -26,11 +26,11 @@ class ChatServer(object):
         # Catch keyboard interrupts
         signal.signal(signal.SIGINT, self.sighandler)
 
-        print(f'Server listening to port: {port} ...')
+        print(f"Server listening to port: {port} ...")
 
     def sighandler(self, signum, frame):
-        """ Clean up client outputs"""
-        print('Shutting down server...')
+        """Clean up client outputs"""
+        print("Shutting down server...")
 
         # Close existing client sockets
         for output in self.outputs:
@@ -39,14 +39,19 @@ class ChatServer(object):
         self.server.close()
 
     def get_client_name(self, client):
-        """ Return the name of the client """
+        """Return the name of the client"""
         info = self.clientmap[client]
         host, name = info[0][0], info[1]
-        return '@'.join((name, host))
-    
-    #create function that sends list of connected clients to client
-    def sendOnlineClients(self, client):
-        get_clients()
+        return "@".join((name, host))
+
+    # create function that sends list of connected clients to client
+    def sendOnlineClients(self):
+        self.cList = []
+
+        for key in self.clientmap:
+            self.cList.append(self.clientmap[key])
+        for output in self.outputs:
+            send(output, self.cList)
 
     def run(self):
         # inputs = [self.server, sys.stdin]
@@ -56,7 +61,8 @@ class ChatServer(object):
         while running:
             try:
                 readable, writeable, exceptional = select.select(
-                    inputs, self.outputs, [])
+                    inputs, self.outputs, []
+                )
             except select.error as e:
                 break
 
@@ -65,27 +71,20 @@ class ChatServer(object):
                 if sock == self.server:
                     # handle the server socket
                     client, address = self.server.accept()
-                
+
                     # Read the login name
-                    cname = receive(client).split('NAME: ')[1]
-                    
-                    #print client name and join message
-                    print(cname + ' has joined the server from ' + str(address))
+                    cname = receive(client).split("NAME: ")[1]
+
+                    # print client name and join message
+                    print(cname + " has joined the server from " + str(address))
 
                     # Compute client name and send back
                     self.clients += 1
-                    send(client, f'CLIENT: {str(address[0])}')
+                    send(client, f"CLIENT: {str(address[0])}")
                     inputs.append(client)
 
                     self.clientmap[client] = (address, cname)
-                    # Send joining information to other clients
-                    msg = f'\n(Connected: New client ({self.clients}) from {self.get_client_name(client)})'
-                    for output in self.outputs:
-                        send(output, msg)
                     self.outputs.append(client)
-                    
-                    #add client to allClients dictionary
-                    # self.allClients.append(client)
 
                 # elif sock == sys.stdin:
                 #     # didn't test sys.stdin on windows system
@@ -101,45 +100,41 @@ class ChatServer(object):
                         data = receive(sock)
                         if data:
                             # Send as new client's message...
-                            msg = f'\n#[{self.get_client_name(sock)}]>> {data}'
 
-                            # Send data to all except yourself
-                            for output in self.outputs:
-                                if output != sock:
-                                    send(output, msg)
-                            
-                            if data == 'getOnlineClients':
-                                send(sock, self.allClients)
-                            if data == 'getGroupChats':
-                                send(sock, self.groupChats)
+                            if data == "getOnlineClients":
+                                self.sendOnlineClients()
+
+                            if data == "getGroupChats":
+                                self.sendOnlineClients()
+
                         else:
-                            print(f'Chat server: {sock.fileno()} hung up')
+                            print(f"Chat server: {sock.fileno()} hung up")
                             self.clients -= 1
-                            #remove client from allClients dictionary
-                            del self.allClients[sock]
-                            sock.close()
+                            sock.close()  # disconnect client from server
+                            # remove disconnected client from client list
                             inputs.remove(sock)
                             self.outputs.remove(sock)
+                            # self.cList.remove(sock)
+                            self.clientmap.pop(sock)
+                            # remove client from allClients dictionary
 
-                            # Sending client leaving information to others
-                            msg = f'\n(Now hung up: Client from {self.get_client_name(sock)})'
-
-                            for output in self.outputs:
-                                send(output, msg)
+                            # remove client from allClients list
+                            # send updated list to all clients
+                            self.sendOnlineClients()
                     except socket.error as e:
                         # Remove
                         inputs.remove(sock)
-                        self.outputs.remove(sock)
-                        
+                        self.outputs.remove
+                        self.clientmap.pop(sock)(sock)
+                        self.sendOnlineClients()
+
         self.server.close()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Socket Server Example with Select')
-    parser.add_argument('--name', action="store", dest="name", required=True)
-    parser.add_argument('--port', action="store",
-                        dest="port", type=int, required=True)
+    parser = argparse.ArgumentParser(description="Socket Server Example with Select")
+    parser.add_argument("--name", action="store", dest="name", required=True)
+    parser.add_argument("--port", action="store", dest="port", type=int, required=True)
     given_args = parser.parse_args()
     port = given_args.port
     name = given_args.name

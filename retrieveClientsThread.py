@@ -6,26 +6,24 @@ from utils import *
 from chatClient import *
 
 
-class RetrieveMsgThread(QThread):
-    newMsg = pyqtSignal()
+class RetrieveClientsThread(QThread):
+    newClients = pyqtSignal()
 
     def __init__(self, client):
         super().__init__()
         self.client = client
         self.runThread = True
-        self.msg = []
+        self.cList = []
 
-    def getMsg(self):
-        print(self.msg)
-        return self.msg
+    def getClients(self):
+        return self.cList
 
     def run(self):
         while self.runThread:
-            tempMsg = self.client.receiveMsg()
-            if tempMsg != self.msg:
-                self.msg = tempMsg
-                print(self.msg)
-                self.newMsg.emit()
+            tempList = self.client.getOnlineClients()
+            if tempList != self.cList:
+                self.cList = tempList
+                self.newClients.emit()
             self.sleep(1)
 
     def stop(self):

@@ -7,11 +7,12 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from chatServer import *
 from utils import *
+from retrieveGroupsThread import *
 from chatClient import *
 from chatOneOnOne import *
 
 # Create a class for the create chat room window widgets
-class OnlineUsers(QWidget):
+class createGroupChat(QWidget):
     def __init__(self, client, thread, previousPage):
         super().__init__()
         self.retrieveClientsThread = thread
@@ -36,7 +37,7 @@ class OnlineUsers(QWidget):
         self.setWindowTitle(
             "Hi "
             + self.client.name
-            + "! These are the users currently online! Beep Boop ~"
+            + "Who would you like to invite to your group chat? Beep Boop ~"
         )
         self.setWindowIcon(
             QIcon(
@@ -44,25 +45,45 @@ class OnlineUsers(QWidget):
             )
         )
 
+        # labels
+        self.onlineClients = QLabel("Online Clients")
+        self.invited = QLabel("Online Clients")
+
         # create list to display messages
         self.onlineUsers = QListWidget()
         self.onlineUsers.itemClicked.connect(self.nameClicked)
         # change size of chat box
         self.resize(600, 600)
 
-        self.chatWith = QPushButton("Start Chat")
-        self.chatWith.clicked.connect(self.startChatClicked)
+        # create list to display messages
+        self.dispInvs = QListWidget()
+        self.onlineUsers.itemClicked.connect(self.invClicked)
+        # change size of chat box
+        self.resize(600, 600)
+
+        self.sendInv = QPushButton("Start Chat")
+        self.sendInv.clicked.connect(self.startChatClicked)
+
+        hBox1 = QHBoxLayout()
+        hBox1.addWidget(self.onlineClients)
+        hBox1.addWidget(self.invited)
+
+        hBox2 = QHBoxLayout()
+        hBox2.addWidget(self.onlineUsers)
+        hBox2.addWidget(self.dispInvs)
 
         vBox = QVBoxLayout()
-        vBox.addWidget(self.onlineUsers)
-        vBox.addWidget(self.chatWith)
+        vBox.addLayout(hBox1)
+        vBox.addLayout(hBox2)
+        vBox.addWidget(self.sendInv)
 
         self.setLayout(vBox)
         self.customise()
         self.show()
 
     def startChatClicked(self):
-        self.createChatRoom = chatOneOnOne(self.client, self.chattingWith, self)
+        # show dialog box to confirm inv was sent
+        self.createChatRoom = chatOneOnOne(self.client, self.sendInv, self)
         self.createChatRoom.show()
         self.hide()
 
@@ -71,26 +92,36 @@ class OnlineUsers(QWidget):
         for c in cList:
             self.onlineUsers.addItem(c[1])
 
-    # function to customise the app
+    # function to add someone to group chat
     def nameClicked(self, item):
-        self.chattingWith = item.text()
+        self.sendInv = item.text()
+        # remove from online list
+        self.onlineUsers.takeItem(self.onlineUsers.row(item))
+        self.dispInvs.addItem(item.text())
         # get the socket associated with the name
         for c in self.cList:
-            if c[1] == self.chattingWith:
-                self.chattingWith = c
+            if c[1] == self.sendInv:
+                self.sendInv = c
 
     def customise(self):
         self.setStyleSheet("background-color: rgb(19,19,19);")
+        self.onlineClients.setStyleSheet(
+            "QLabel {font: 12pt; color: rgb(255,255,255)};"
+        )
+        self.invited.setStyleSheet("QLabel {font: 12pt; color: rgb(255,255,255)};")
         self.onlineUsers.setStyleSheet(
             "QListWidget {font: 12pt; color: rgb(255, 255, 255); background-color: rgb(19,19,19); padding: 20px;}"
         )
-        self.chatWith.setStyleSheet(
-            "QPushButton {font: 12pt; color: rgb(255, 255, 255); background-color: rgb(51,51,51); padding: 20px;}"
+        self.dispInvs.setStyleSheet(
+            "QListWidget {font: 12pt; color: rgb(255, 255, 255); background-color: rgb(19,19,19); padding: 20px;}"
+        )
+        self.sendInv.setStyleSheet(
+            "QPushButton {font: 12pt; color: rgb(255, 255, 255); background-color: rgb(19,19,19); padding: 20px;}"
         )
 
     def closeEvent(self, event):
         self.client.cleanup()
-        self.retrieveClientsThread.stop()
+        self.retrieveGroupsThread.stop()
         event.accept()
 
     # function to center the app to open in the middle of the page
